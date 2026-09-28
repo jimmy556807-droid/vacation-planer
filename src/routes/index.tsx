@@ -125,6 +125,7 @@ function Index() {
     onMutate: () => {
       setError(null);
       setPlan(null);
+      setTab("weather");
       setStep("plan");
       window.scrollTo({ top: 0 });
     },
