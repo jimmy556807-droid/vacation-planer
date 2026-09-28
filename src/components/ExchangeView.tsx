@@ -132,7 +132,7 @@ export function ExchangeView() {
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-bold text-secondary-foreground">{currency.code.slice(0, 2)}</span>
                   <span className="truncate text-sm font-medium">{currency.label}</span>
                 </div>
-                <span className="shrink-0 font-semibold tabular-nums text-foreground">{data?.rates[currency.code] ? new Intl.NumberFormat("zh-HK", { maximumFractionDigits: 4 }).format(data.rates[currency.code]) : "—"}</span>
+                <span className="shrink-0 font-semibold tabular-nums text-foreground">{typeof data?.rates[currency.code] === "number" ? new Intl.NumberFormat("zh-HK", { maximumFractionDigits: 4 }).format(data.rates[currency.code] ?? 0) : "—"}</span>
               </div>
             ))}
           </div>
