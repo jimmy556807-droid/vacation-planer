@@ -69,6 +69,20 @@ function todayISO() {
 }
 
 type Step = "input" | "plan";
+type PlanTab = "weather" | "overview" | "packing" | "prep" | "itinerary" | "budget";
+
+const PLAN_TABS: { id: PlanTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "weather", label: "天氣預測", icon: CloudSun },
+  { id: "overview", label: "行程概覽", icon: Sparkles },
+  { id: "packing", label: "行李清單", icon: Luggage },
+  { id: "prep", label: "行前準備", icon: ClipboardCheck },
+  { id: "itinerary", label: "專屬行程詳情", icon: RouteIcon },
+  { id: "budget", label: "預算分配", icon: Wallet },
+];
+
+function budgetBarColor(i: number) {
+  return i % 3 === 0 ? "bg-primary" : i % 3 === 1 ? "bg-accent" : "bg-secondary";
+}
 
 function Index() {
   const weatherFn = useServerFn(getWeather);
@@ -82,6 +96,7 @@ function Index() {
   const [days, setDays] = useState("5");
   const [startDate, setStartDate] = useState(todayISO());
   const [interests, setInterests] = useState("");
+  const [tab, setTab] = useState<PlanTab>("weather");
   const [weather, setWeather] = useState<WeatherResult | null>(null);
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
