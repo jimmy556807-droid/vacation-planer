@@ -69,6 +69,20 @@ function todayISO() {
 }
 
 type Step = "input" | "plan";
+type PlanTab = "weather" | "overview" | "packing" | "prep" | "itinerary" | "budget";
+
+const PLAN_TABS: { id: PlanTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "weather", label: "天氣預測", icon: CloudSun },
+  { id: "overview", label: "行程概覽", icon: Sparkles },
+  { id: "packing", label: "行李清單", icon: Luggage },
+  { id: "prep", label: "行前準備", icon: ClipboardCheck },
+  { id: "itinerary", label: "專屬行程詳情", icon: RouteIcon },
+  { id: "budget", label: "預算分配", icon: Wallet },
+];
+
+function budgetBarColor(i: number) {
+  return i % 3 === 0 ? "bg-primary" : i % 3 === 1 ? "bg-accent" : "bg-secondary";
+}
 
 function Index() {
   const weatherFn = useServerFn(getWeather);
@@ -82,6 +96,7 @@ function Index() {
   const [days, setDays] = useState("5");
   const [startDate, setStartDate] = useState(todayISO());
   const [interests, setInterests] = useState("");
+  const [tab, setTab] = useState<PlanTab>("weather");
   const [weather, setWeather] = useState<WeatherResult | null>(null);
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +125,7 @@ function Index() {
     onMutate: () => {
       setError(null);
       setPlan(null);
+      setTab("weather");
       setStep("plan");
       window.scrollTo({ top: 0 });
     },
@@ -278,95 +294,128 @@ function Index() {
             </Card>
           )}
 
-          {weather && (
-            <Card className="shadow-soft">
-              <CardHeader>
-                <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
-                  <CloudSun className="size-5 text-accent" />
-                  {weather.place}
-                  {weather.country ? `．${weather.country}` : ""} 旅行期間天氣
-                  {!weather.isForecast && (
-                    <Badge variant="secondary" className="font-normal">
-                      去年同期氣候參考
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                  {weather.daily.map((d) => {
-                    const look = weatherLook(d.code);
-                    return (
-                      <div
-                        key={d.date}
-                        className="rounded-xl bg-sand p-4 text-center text-sand-foreground"
-                      >
-                        <p className="text-xs text-muted-foreground">{formatDate(d.date)}</p>
-                        <p className="my-1 text-2xl">{look.icon}</p>
-                        <p className="text-sm font-medium">{look.label}</p>
-                        <p className="mt-1 text-sm">
-                          {d.min !== null ? Math.round(d.min) : "–"}° /{" "}
-                          {d.max !== null ? Math.round(d.max) : "–"}°
-                        </p>
-                        {d.precipitation !== null && d.precipitation > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            降雨 {d.precipitation.toFixed(1)} mm
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {weather.daily.length > 0 && (
-                  <div className="mt-5 flex items-end gap-2 border-b border-border pb-2" aria-label="旅行期間溫度變化圖">
-                    {weather.daily.map((d) => {
-                      const max = d.max ?? 0;
-                      const min = d.min ?? 0;
-                      const height = Math.max(16, Math.min(100, (max - min + 8) * 4));
-                      return (
-                        <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                          <span className="text-xs font-semibold text-foreground">{Math.round(max)}°</span>
-                          <div className="flex h-20 w-full items-end justify-center">
-                            <div className="w-full max-w-10 rounded-t-sm bg-accent" style={{ height: `${height}%` }} />
-                          </div>
-                          <span className="truncate text-xs text-muted-foreground">{formatDate(d.date).split(" ")[0]}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                <p className="mt-4 text-sm text-muted-foreground">{weather.climateNote}</p>
-              </CardContent>
-            </Card>
-          )}
 
           {plan && (
-            <div className="mt-8 space-y-8">
-              <Card className="shadow-soft">
-                <CardHeader>
-                  <CardTitle className="text-lg">行程概覽</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm leading-7">{plan.overview}</p>
-                  {plan.weatherAdvice.length > 0 && (
-                    <>
-                      <Separator />
-                      <div>
-                        <h3 className="mb-2 text-base font-semibold">天氣相關建議</h3>
-                        <ul className="space-y-2 text-sm">
-                          {plan.weatherAdvice.map((t, i) => (
-                            <li key={i} className="flex gap-2">
-                              <span className="text-accent">•</span> {t}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+            <>
+              <div
+                role="tablist"
+                aria-label="行程內容標籤"
+                className="sticky top-0 z-30 -mx-6 mb-8 border-b border-border bg-card/95 backdrop-blur"
+              >
+                <div className="flex gap-1 overflow-x-auto px-3">
+                  {PLAN_TABS.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === t.id}
+                      onClick={() => {
+                        setTab(t.id);
+                        window.scrollTo({ top: 0 });
+                      }}
+                      className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3.5 py-3.5 text-sm font-semibold transition-colors ${
+                        tab === t.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <t.icon className="size-4" />
+                      {t.label}
+                      {tab === t.id && (
+                        <span aria-hidden="true" className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-              <div className="grid gap-6 md:grid-cols-2">
+              {tab === "weather" && weather && (
+                <Card className="shadow-soft">
+                  <CardHeader>
+                    <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
+                      <CloudSun className="size-5 text-accent" />
+                      {weather.place}
+                      {weather.country ? `．${weather.country}` : ""} 旅行期間天氣
+                      {!weather.isForecast && (
+                        <Badge variant="secondary" className="font-normal">
+                          去年同期氣候參考
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                      {weather.daily.map((d) => {
+                        const look = weatherLook(d.code);
+                        return (
+                          <div
+                            key={d.date}
+                            className="rounded-xl bg-sand p-4 text-center text-sand-foreground"
+                          >
+                            <p className="text-xs text-muted-foreground">{formatDate(d.date)}</p>
+                            <p className="my-1 text-2xl">{look.icon}</p>
+                            <p className="text-sm font-medium">{look.label}</p>
+                            <p className="mt-1 text-sm">
+                              {d.min !== null ? Math.round(d.min) : "–"}° /{" "}
+                              {d.max !== null ? Math.round(d.max) : "–"}°
+                            </p>
+                            {d.precipitation !== null && d.precipitation > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                降雨 {d.precipitation.toFixed(1)} mm
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {weather.daily.length > 0 && (
+                      <div className="mt-5 flex items-end gap-2 border-b border-border pb-2" aria-label="旅行期間溫度變化圖">
+                        {weather.daily.map((d) => {
+                          const max = d.max ?? 0;
+                          const min = d.min ?? 0;
+                          const height = Math.max(16, Math.min(100, (max - min + 8) * 4));
+                          return (
+                            <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                              <span className="text-xs font-semibold text-foreground">{Math.round(max)}°</span>
+                              <div className="flex h-20 w-full items-end justify-center">
+                                <div className="w-full max-w-10 rounded-t-sm bg-accent" style={{ height: `${height}%` }} />
+                              </div>
+                              <span className="truncate text-xs text-muted-foreground">{formatDate(d.date).split(" ")[0]}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="mt-4 text-sm text-muted-foreground">{weather.climateNote}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {tab === "overview" && (
+                <Card className="shadow-soft">
+                  <CardHeader>
+                    <CardTitle className="text-lg">行程概覽</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm leading-7">{plan.overview}</p>
+                    {plan.weatherAdvice.length > 0 && (
+                      <>
+                        <Separator />
+                        <div>
+                          <h3 className="mb-2 text-base font-semibold">天氣相關建議</h3>
+                          <ul className="space-y-2 text-sm">
+                            {plan.weatherAdvice.map((t, i) => (
+                              <li key={i} className="flex gap-2">
+                                <span className="text-accent">•</span> {t}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {tab === "packing" && (
                 <Card className="shadow-soft">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
@@ -388,7 +437,9 @@ function Index() {
                     ))}
                   </CardContent>
                 </Card>
+              )}
 
+              {tab === "prep" && (
                 <Card className="shadow-soft">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
@@ -405,145 +456,168 @@ function Index() {
                     </ul>
                   </CardContent>
                 </Card>
-              </div>
+              )}
 
-              <section className="overflow-hidden rounded-lg border border-border bg-card shadow-lift">
-                <div className="bg-primary px-6 py-7 text-primary-foreground md:px-9 md:py-9">
-                  <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-primary-foreground/65">
-                        <RouteIcon className="size-4" /> 你的專屬旅程
-                      </p>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="text-2xl font-semibold md:text-3xl">{origin}</h2>
-                        <ArrowRight className="size-5 text-accent" />
-                        <h2 className="text-2xl font-semibold md:text-3xl">{destination}</h2>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-5 sm:text-right">
+              {tab === "itinerary" && (
+                <section className="overflow-hidden rounded-lg border border-border bg-card shadow-lift">
+                  <div className="bg-primary px-6 py-7 text-primary-foreground md:px-9 md:py-9">
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                       <div>
-                        <p className="text-2xl font-semibold">{plan.days.length}</p>
-                        <p className="text-xs text-primary-foreground/60">旅行天數</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">{formatDate(startDate)}</p>
-                        <p className="text-xs text-primary-foreground/60">啟程日期</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="px-5 py-8 md:px-9 md:py-10">
-                  <div className="mb-9 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold text-accent-foreground">逐日路線</p>
-                      <h2 className="mt-1 text-2xl font-semibold">每日行程</h2>
-                    </div>
-                    <Badge variant="secondary" className="gap-1.5 font-normal">
-                      <CalendarDays className="size-3.5" /> {plan.days.length} 天
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-12">
-                    {plan.days.map((d, dayIndex) => {
-                      const dayWeather = weather?.daily.find((item) => item.date === d.date);
-                      const look = weatherLook(dayWeather?.code ?? null);
-                      return (
-                        <article
-                          key={d.day}
-                          className="itinerary-reveal"
-                          style={{ animationDelay: `${Math.min(dayIndex * 90, 450)}ms` }}
-                        >
-                          <header className="mb-7 flex items-start justify-between gap-4">
-                            <div className="flex min-w-0 items-center gap-4">
-                              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-accent text-base font-bold text-accent-foreground shadow-soft">
-                                {String(d.day).padStart(2, "0")}
-                              </span>
-                              <div className="min-w-0">
-                                <p className="text-xs font-medium text-muted-foreground">{formatDate(d.date)}</p>
-                                <h3 className="mt-1 text-lg font-semibold md:text-xl">{d.title}</h3>
-                              </div>
-                            </div>
-                            {dayWeather && (
-                              <div className="hidden shrink-0 items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm sm:flex">
-                                <span className="text-lg" aria-hidden="true">{look.icon}</span>
-                                <span className="font-semibold">{Math.round(dayWeather.min ?? 0)}°–{Math.round(dayWeather.max ?? 0)}°</span>
-                              </div>
-                            )}
-                          </header>
-
-                          <div className="relative ml-6 space-y-7 border-l-2 border-secondary pb-2 pl-8 md:pl-10">
-                            <TimelineItem icon={<Sunrise className="size-4" />} label="上午" value={d.morning} emphasized />
-                            <TimelineItem icon={<Sun className="size-4" />} label="下午" value={d.afternoon} />
-                            <TimelineItem icon={<Moon className="size-4" />} label="晚上" value={d.evening} />
-                            <TimelineItem icon={<Utensils className="size-4" />} label="餐飲推薦" value={d.food} />
-                          </div>
-
-                          <div className="ml-6 mt-5 flex flex-wrap items-center gap-3 pl-8 md:pl-10">
-                            <Badge className="gap-1.5 bg-primary text-primary-foreground">
-                              <CircleDollarSign className="size-3.5" /> {d.estimatedCost}
-                            </Badge>
-                            {dayWeather && (dayWeather.precipitation ?? 0) > 0 && (
-                              <Badge variant="secondary" className="gap-1.5 font-normal">
-                                <Umbrella className="size-3.5" /> 降雨 {dayWeather.precipitation?.toFixed(1)} mm
-                              </Badge>
-                            )}
-                            {dayWeather && (
-                              <span className="flex items-center gap-1.5 text-xs text-muted-foreground sm:hidden">
-                                <Thermometer className="size-3.5" /> {Math.round(dayWeather.min ?? 0)}°–{Math.round(dayWeather.max ?? 0)}°
-                              </span>
-                            )}
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </div>
-              </section>
-
-              <Card className="shadow-soft">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Wallet className="size-5 text-primary" /> 預算分配（{currency}）
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {(() => {
-                    const amounts = plan.budget.map((b) => Number(b.amount.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? 0));
-                    const total = amounts.reduce((sum, amount) => sum + amount, 0);
-                    return total > 0 ? (
-                      <div className="pb-4" aria-label="預算分配比例圖">
-                        <div className="mb-3 flex h-4 overflow-hidden rounded-sm bg-muted">
-                          {plan.budget.map((b, i) => (
-                            <div
-                              key={b.label}
-                              className={`h-full border-r border-card last:border-0 ${i % 3 === 0 ? "bg-primary" : i % 3 === 1 ? "bg-accent" : "bg-secondary"}`}
-                              style={{ width: `${((amounts[i] ?? 0) / total) * 100}%` }}
-                              title={`${b.label}：${b.amount}`}
-                            />
-                          ))}
+                        <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-primary-foreground/65">
+                          <RouteIcon className="size-4" /> 你的專屬旅程
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h2 className="text-2xl font-semibold md:text-3xl">{origin}</h2>
+                          <ArrowRight className="size-5 text-accent" />
+                          <h2 className="text-2xl font-semibold md:text-3xl">{destination}</h2>
                         </div>
-                        <p className="text-xs text-muted-foreground">各項花費佔比</p>
                       </div>
-                    ) : null;
-                  })()}
-                  {plan.budget.map((b) => (
-                    <div
-                      key={b.label}
-                      className="flex items-center justify-between border-b border-border pb-2 text-sm last:border-0"
-                    >
-                      <span className="text-muted-foreground">{b.label}</span>
-                      <span className="font-semibold">{b.amount}</span>
+                      <div className="grid grid-cols-2 gap-5 sm:text-right">
+                        <div>
+                          <p className="text-2xl font-semibold">{plan.days.length}</p>
+                          <p className="text-xs text-primary-foreground/60">旅行天數</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{formatDate(startDate)}</p>
+                          <p className="text-xs text-primary-foreground/60">啟程日期</p>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                  {plan.budgetVerdict && (
-                    <p className="rounded-lg bg-sand p-4 text-sm leading-6 text-sand-foreground">
-                      {plan.budgetVerdict}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                  </div>
+
+                  <div className="px-5 py-8 md:px-9 md:py-10">
+                    <div className="mb-9 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-accent-foreground">逐日路線</p>
+                        <h2 className="mt-1 text-2xl font-semibold">每日行程</h2>
+                      </div>
+                      <Badge variant="secondary" className="gap-1.5 font-normal">
+                        <CalendarDays className="size-3.5" /> {plan.days.length} 天
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-12">
+                      {plan.days.map((d, dayIndex) => {
+                        const dayWeather = weather?.daily.find((item) => item.date === d.date);
+                        const look = weatherLook(dayWeather?.code ?? null);
+                        return (
+                          <article
+                            key={d.day}
+                            className="itinerary-reveal"
+                            style={{ animationDelay: `${Math.min(dayIndex * 90, 450)}ms` }}
+                          >
+                            <header className="mb-7 flex items-start justify-between gap-4">
+                              <div className="flex min-w-0 items-center gap-4">
+                                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-accent text-base font-bold text-accent-foreground shadow-soft">
+                                  {String(d.day).padStart(2, "0")}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium text-muted-foreground">{formatDate(d.date)}</p>
+                                  <h3 className="mt-1 text-lg font-semibold md:text-xl">{d.title}</h3>
+                                </div>
+                              </div>
+                              {dayWeather && (
+                                <div className="hidden shrink-0 items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm sm:flex">
+                                  <span className="text-lg" aria-hidden="true">{look.icon}</span>
+                                  <span className="font-semibold">{Math.round(dayWeather.min ?? 0)}°–{Math.round(dayWeather.max ?? 0)}°</span>
+                                </div>
+                              )}
+                            </header>
+
+                            <div className="relative ml-6 space-y-7 border-l-2 border-secondary pb-2 pl-8 md:pl-10">
+                              <TimelineItem icon={<Sunrise className="size-4" />} label="上午" value={d.morning} emphasized />
+                              <TimelineItem icon={<Sun className="size-4" />} label="下午" value={d.afternoon} />
+                              <TimelineItem icon={<Moon className="size-4" />} label="晚上" value={d.evening} />
+                              <TimelineItem icon={<Utensils className="size-4" />} label="餐飲推薦" value={d.food} />
+                            </div>
+
+                            <div className="ml-6 mt-5 flex flex-wrap items-center gap-3 pl-8 md:pl-10">
+                              <Badge className="gap-1.5 bg-primary text-primary-foreground">
+                                <CircleDollarSign className="size-3.5" /> {d.estimatedCost}
+                              </Badge>
+                              {dayWeather && (dayWeather.precipitation ?? 0) > 0 && (
+                                <Badge variant="secondary" className="gap-1.5 font-normal">
+                                  <Umbrella className="size-3.5" /> 降雨 {dayWeather.precipitation?.toFixed(1)} mm
+                                </Badge>
+                              )}
+                              {dayWeather && (
+                                <span className="flex items-center gap-1.5 text-xs text-muted-foreground sm:hidden">
+                                  <Thermometer className="size-3.5" /> {Math.round(dayWeather.min ?? 0)}°–{Math.round(dayWeather.max ?? 0)}°
+                                </span>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {tab === "budget" && (
+                <Card className="shadow-soft">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Wallet className="size-5 text-primary" /> 預算分配（{currency}）
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {(() => {
+                      const amounts = plan.budget.map((b) => Number(b.amount.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? 0));
+                      const total = amounts.reduce((sum, amount) => sum + amount, 0);
+                      return (
+                        <>
+                          {total > 0 && (
+                            <div className="pb-2" aria-label="預算分配比例圖">
+                              <div className="mb-3 flex h-4 overflow-hidden rounded-sm bg-muted">
+                                {plan.budget.map((b, i) => (
+                                  <div
+                                    key={b.label}
+                                    className={`h-full border-r border-card last:border-0 ${budgetBarColor(i)}`}
+                                    style={{ width: `${((amounts[i] ?? 0) / total) * 100}%` }}
+                                    title={`${b.label}：${b.amount}`}
+                                  />
+                                ))}
+                              </div>
+                              <p className="text-xs text-muted-foreground">各項花費佔比</p>
+                            </div>
+                          )}
+                          {plan.budget.map((b, i) => {
+                            const pct = total > 0 ? ((amounts[i] ?? 0) / total) * 100 : 0;
+                            return (
+                              <div key={b.label} className="space-y-1.5 border-b border-border pb-3 last:border-0">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground">{b.label}</span>
+                                  <span className="font-semibold">
+                                    {b.amount}
+                                    {total > 0 && (
+                                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                        {pct.toFixed(0)}%
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="h-2 overflow-hidden rounded-sm bg-muted">
+                                  <div
+                                    className={`h-full rounded-sm ${budgetBarColor(i)}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {plan.budgetVerdict && (
+                            <p className="rounded-lg bg-sand p-4 text-sm leading-6 text-sand-foreground">
+                              {plan.budgetVerdict}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </div>
       )}
