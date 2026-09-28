@@ -123,7 +123,7 @@ function Index() {
       </section>
 
       <div className="mx-auto max-w-5xl px-6 pb-24">
-        <Card className="-mt-12 shadow-lift">
+        <Card className="relative z-10 -mt-12 shadow-lift">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
               <Plane className="size-5 text-primary" /> 旅程資料
