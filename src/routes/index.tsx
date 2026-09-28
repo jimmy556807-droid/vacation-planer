@@ -479,7 +479,7 @@ function Index() {
                           <div
                             key={b.label}
                             className={`h-full border-r border-card last:border-0 ${i % 3 === 0 ? "bg-primary" : i % 3 === 1 ? "bg-accent" : "bg-secondary"}`}
-                            style={{ width: `${(amounts[i] / total) * 100}%` }}
+                            style={{ width: `${((amounts[i] ?? 0) / total) * 100}%` }}
                             title={`${b.label}：${b.amount}`}
                           />
                         ))}
