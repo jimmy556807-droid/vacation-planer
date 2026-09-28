@@ -294,67 +294,6 @@ function Index() {
             </Card>
           )}
 
-          {weather && (
-            <Card className="shadow-soft">
-              <CardHeader>
-                <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
-                  <CloudSun className="size-5 text-accent" />
-                  {weather.place}
-                  {weather.country ? `．${weather.country}` : ""} 旅行期間天氣
-                  {!weather.isForecast && (
-                    <Badge variant="secondary" className="font-normal">
-                      去年同期氣候參考
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                  {weather.daily.map((d) => {
-                    const look = weatherLook(d.code);
-                    return (
-                      <div
-                        key={d.date}
-                        className="rounded-xl bg-sand p-4 text-center text-sand-foreground"
-                      >
-                        <p className="text-xs text-muted-foreground">{formatDate(d.date)}</p>
-                        <p className="my-1 text-2xl">{look.icon}</p>
-                        <p className="text-sm font-medium">{look.label}</p>
-                        <p className="mt-1 text-sm">
-                          {d.min !== null ? Math.round(d.min) : "–"}° /{" "}
-                          {d.max !== null ? Math.round(d.max) : "–"}°
-                        </p>
-                        {d.precipitation !== null && d.precipitation > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            降雨 {d.precipitation.toFixed(1)} mm
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {weather.daily.length > 0 && (
-                  <div className="mt-5 flex items-end gap-2 border-b border-border pb-2" aria-label="旅行期間溫度變化圖">
-                    {weather.daily.map((d) => {
-                      const max = d.max ?? 0;
-                      const min = d.min ?? 0;
-                      const height = Math.max(16, Math.min(100, (max - min + 8) * 4));
-                      return (
-                        <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                          <span className="text-xs font-semibold text-foreground">{Math.round(max)}°</span>
-                          <div className="flex h-20 w-full items-end justify-center">
-                            <div className="w-full max-w-10 rounded-t-sm bg-accent" style={{ height: `${height}%` }} />
-                          </div>
-                          <span className="truncate text-xs text-muted-foreground">{formatDate(d.date).split(" ")[0]}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                <p className="mt-4 text-sm text-muted-foreground">{weather.climateNote}</p>
-              </CardContent>
-            </Card>
-          )}
 
           {plan && (
             <>
