@@ -581,7 +581,7 @@ function BottomBar({
         <button
           type="button"
           onClick={onInput}
-          className={`flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-colors ${
+          className={`relative flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-colors ${
             step === "input"
               ? "text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -590,14 +590,14 @@ function BottomBar({
           <PenLine className="size-4" />
           旅程輸入
           {step === "input" && (
-            <span className="absolute bottom-0 h-0.5 w-full max-w-[120px] translate-y-0 bg-accent" style={{ position: "relative" }} />
+            <span aria-hidden="true" className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-accent" />
           )}
         </button>
         <button
           type="button"
           onClick={onPlan}
           disabled={!hasPlan}
-          className={`flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+          className={`relative flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
             step === "plan" ? "text-primary" : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -607,6 +607,9 @@ function BottomBar({
             <RouteIcon className="size-4" />
           )}
           行程概覽
+          {step === "plan" && (
+            <span aria-hidden="true" className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-accent" />
+          )}
         </button>
       </div>
     </nav>
