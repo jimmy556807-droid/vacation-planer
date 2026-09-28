@@ -278,6 +278,24 @@ function Index() {
                   );
                 })}
               </div>
+              {weather.daily.length > 0 && (
+                <div className="mt-5 flex items-end gap-2 border-b border-border pb-2" aria-label="旅行期間溫度變化圖">
+                  {weather.daily.map((d) => {
+                    const max = d.max ?? 0;
+                    const min = d.min ?? 0;
+                    const height = Math.max(16, Math.min(100, (max - min + 8) * 4));
+                    return (
+                      <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                        <span className="text-xs font-semibold text-foreground">{Math.round(max)}°</span>
+                        <div className="flex h-20 w-full items-end justify-center">
+                          <div className="w-full max-w-10 rounded-t-sm bg-accent" style={{ height: `${height}%` }} />
+                        </div>
+                        <span className="truncate text-xs text-muted-foreground">{formatDate(d.date).split(" ")[0]}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <p className="mt-4 text-sm text-muted-foreground">{weather.climateNote}</p>
             </CardContent>
           </Card>
@@ -451,13 +469,32 @@ function Index() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {(() => {
+                  const amounts = plan.budget.map((b) => Number(b.amount.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? 0));
+                  const total = amounts.reduce((sum, amount) => sum + amount, 0);
+                  return total > 0 ? (
+                    <div className="pb-4" aria-label="預算分配比例圖">
+                      <div className="mb-3 flex h-4 overflow-hidden rounded-sm bg-muted">
+                        {plan.budget.map((b, i) => (
+                          <div
+                            key={b.label}
+                            className={`h-full border-r border-card last:border-0 ${i % 3 === 0 ? "bg-primary" : i % 3 === 1 ? "bg-accent" : "bg-secondary"}`}
+                            style={{ width: `${(amounts[i] / total) * 100}%` }}
+                            title={`${b.label}：${b.amount}`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">各項花費佔比</p>
+                    </div>
+                  ) : null;
+                })()}
                 {plan.budget.map((b) => (
                   <div
                     key={b.label}
                     className="flex items-center justify-between border-b border-border pb-2 text-sm last:border-0"
                   >
                     <span className="text-muted-foreground">{b.label}</span>
-                    <span className="font-medium">{b.amount}</span>
+                    <span className="font-semibold">{b.amount}</span>
                   </div>
                 ))}
                 {plan.budgetVerdict && (
