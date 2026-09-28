@@ -24,6 +24,7 @@ import {
   Thermometer,
   Umbrella,
   PenLine,
+  ArrowLeftRight,
 } from "lucide-react";
 
 import heroImage from "@/assets/hero-travel.jpg";
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/select";
 import { getWeather, planTrip, type TripPlan, type WeatherResult } from "@/lib/travel.functions";
 import { CURRENCIES, formatDate, weatherLook } from "@/lib/weather-display";
+import { ExchangeView } from "@/components/ExchangeView";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -68,7 +70,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-type Step = "input" | "plan";
+type Step = "input" | "exchange" | "plan";
 type PlanTab = "weather" | "overview" | "packing" | "prep" | "itinerary" | "budget";
 
 const PLAN_TABS: { id: PlanTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -267,6 +269,8 @@ function Index() {
             </Card>
           </div>
         </>
+      ) : step === "exchange" ? (
+        <ExchangeView />
       ) : (
         <div className="mx-auto max-w-5xl px-6 py-10">
           {mutation.isPending && !plan && (
@@ -627,6 +631,7 @@ function Index() {
         hasPlan={hasPlan}
         pending={mutation.isPending}
         onInput={() => setStep("input")}
+        onExchange={() => setStep("exchange")}
         onPlan={() => setStep("plan")}
       />
     </main>
@@ -638,12 +643,14 @@ function BottomBar({
   hasPlan,
   pending,
   onInput,
+  onExchange,
   onPlan,
 }: {
   step: Step;
   hasPlan: boolean;
   pending: boolean;
   onInput: () => void;
+  onExchange: () => void;
   onPlan: () => void;
 }) {
   return (
@@ -651,11 +658,12 @@ function BottomBar({
       aria-label="頁面切換"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur shadow-lift"
     >
-      <div className="mx-auto grid max-w-5xl grid-cols-2">
-        <button
+      <div className="mx-auto grid max-w-5xl grid-cols-3">
+        <Button
+          variant="ghost"
           type="button"
           onClick={onInput}
-          className={`relative flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-colors ${
+          className={`relative h-auto min-w-0 rounded-none px-1 py-3.5 text-xs font-semibold transition-colors sm:gap-2 sm:text-sm ${
             step === "input"
               ? "text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -666,12 +674,27 @@ function BottomBar({
           {step === "input" && (
             <span aria-hidden="true" className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-accent" />
           )}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
+          type="button"
+          onClick={onExchange}
+          className={`relative h-auto min-w-0 rounded-none px-1 py-3.5 text-xs font-semibold transition-colors sm:gap-2 sm:text-sm ${
+            step === "exchange" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <ArrowLeftRight className="size-4" />
+          實時匯率
+          {step === "exchange" && (
+            <span aria-hidden="true" className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-accent" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
           type="button"
           onClick={onPlan}
           disabled={!hasPlan}
-          className={`relative flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+          className={`relative h-auto min-w-0 rounded-none px-1 py-3.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 sm:gap-2 sm:text-sm ${
             step === "plan" ? "text-primary" : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -684,7 +707,7 @@ function BottomBar({
           {step === "plan" && (
             <span aria-hidden="true" className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-accent" />
           )}
-        </button>
+        </Button>
       </div>
     </nav>
   );
