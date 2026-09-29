@@ -229,7 +229,7 @@ function Index() {
                   </Field>
                   <div className="md:col-span-2">
                     <Field icon={<Sparkles className="size-4" />} label="旅行偏好（選填，可多選）" htmlFor="likes">
-                      <InterestTags value={interests} onChange={setInterests} />
+                      <InterestTags value={interestTags} onChange={setInterests} />
                     </Field>
                   </div>
                 </div>
