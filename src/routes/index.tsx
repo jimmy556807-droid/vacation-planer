@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 
 import heroImage from "@/assets/hero-travel.jpg";
+import { DestinationPicker, InterestTags } from "@/components/TripPickers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,13 +92,14 @@ function Index() {
   const planFn = useServerFn(planTrip);
 
   const [step, setStep] = useState<Step>("input");
-  const [origin, setOrigin] = useState("");
+  const origin = "香港";
   const [destination, setDestination] = useState("");
   const [budget, setBudget] = useState("");
   const [currency, setCurrency] = useState("HKD");
   const [days, setDays] = useState("5");
   const [startDate, setStartDate] = useState(todayISO());
-  const [interests, setInterests] = useState("");
+  const [interestTags, setInterests] = useState<string[]>([]);
+  const interests = interestTags.join("、");
   const [tab, setTab] = useState<PlanTab>("weather");
   const [weather, setWeather] = useState<WeatherResult | null>(null);
   const [plan, setPlan] = useState<TripPlan | null>(null);
@@ -172,20 +174,7 @@ function Index() {
               <CardContent className="space-y-6">
                 <div className="grid gap-5 md:grid-cols-2">
                   <Field icon={<MapPin className="size-4" />} label="出發地" htmlFor="origin">
-                    <Input
-                      id="origin"
-                      placeholder="例如：香港"
-                      value={origin}
-                      onChange={(e) => setOrigin(e.target.value)}
-                    />
-                  </Field>
-                  <Field icon={<MapPin className="size-4" />} label="目的地" htmlFor="destination">
-                    <Input
-                      id="destination"
-                      placeholder="例如：京都"
-                      value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
-                    />
+                    <Input id="origin" value={origin} readOnly disabled />
                   </Field>
                   <Field icon={<Wallet className="size-4" />} label="總預算" htmlFor="budget">
                     <div className="flex gap-2">
@@ -211,6 +200,11 @@ function Index() {
                       </Select>
                     </div>
                   </Field>
+                  <div className="md:col-span-2">
+                    <Field icon={<MapPin className="size-4" />} label="目的地" htmlFor="destination">
+                      <DestinationPicker value={destination} onChange={setDestination} />
+                    </Field>
+                  </div>
                   <Field icon={<Clock className="size-4" />} label="旅行天數" htmlFor="days">
                     <Input
                       id="days"
@@ -233,14 +227,11 @@ function Index() {
                       onChange={(e) => setStartDate(e.target.value)}
                     />
                   </Field>
-                  <Field icon={<Sparkles className="size-4" />} label="旅行偏好（選填）" htmlFor="likes">
-                    <Input
-                      id="likes"
-                      placeholder="美食、古蹟、親子、攝影…"
-                      value={interests}
-                      onChange={(e) => setInterests(e.target.value)}
-                    />
-                  </Field>
+                  <div className="md:col-span-2">
+                    <Field icon={<Sparkles className="size-4" />} label="旅行偏好（選填，可多選）" htmlFor="likes">
+                      <InterestTags value={interests} onChange={setInterests} />
+                    </Field>
+                  </div>
                 </div>
 
                 <Button
