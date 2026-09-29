@@ -1,130 +1,136 @@
 import { useMemo, useState } from "react";
-import { Search, Check } from "lucide-react";
+import { Search, Check, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useLang, useT, type Lang } from "@/lib/i18n";
 
-const DESTINATIONS: { region: string; cities: string[] }[] = [
-  { region: "日本", cities: ["東京", "大阪", "京都", "北海道", "沖繩", "福岡", "名古屋"] },
-  { region: "韓國", cities: ["首爾", "釜山", "濟州島"] },
-  { region: "台灣", cities: ["台北", "台中", "台南", "高雄", "花蓮"] },
-  { region: "中國內地", cities: ["北京", "上海", "廣州", "深圳", "成都", "西安", "杭州", "桂林"] },
-  { region: "東南亞", cities: ["曼谷", "清邁", "新加坡", "吉隆坡", "峇里島", "河內", "峴港", "胡志明市", "宿霧"] },
-  { region: "歐洲", cities: ["倫敦", "巴黎", "羅馬", "巴塞隆拿", "阿姆斯特丹", "蘇黎世", "布拉格"] },
-  { region: "其他", cities: ["悉尼", "墨爾本", "紐約", "洛杉磯", "杜拜", "溫哥華"] },
+export type City = { hant: string; hans: string; en: string };
+
+// [繁, 简, English]
+const RAW: [string, string, string][] = [
+  ["東京", "东京", "Tokyo"], ["大阪", "大阪", "Osaka"], ["京都", "京都", "Kyoto"], ["札幌", "札幌", "Sapporo"],
+  ["沖繩", "冲绳", "Okinawa"], ["福岡", "福冈", "Fukuoka"], ["名古屋", "名古屋", "Nagoya"], ["奈良", "奈良", "Nara"],
+  ["首爾", "首尔", "Seoul"], ["釜山", "釜山", "Busan"], ["濟州島", "济州岛", "Jeju"],
+  ["台北", "台北", "Taipei"], ["台中", "台中", "Taichung"], ["台南", "台南", "Tainan"], ["高雄", "高雄", "Kaohsiung"], ["花蓮", "花莲", "Hualien"],
+  ["北京", "北京", "Beijing"], ["上海", "上海", "Shanghai"], ["廣州", "广州", "Guangzhou"], ["深圳", "深圳", "Shenzhen"],
+  ["成都", "成都", "Chengdu"], ["重慶", "重庆", "Chongqing"], ["西安", "西安", "Xi'an"], ["杭州", "杭州", "Hangzhou"],
+  ["桂林", "桂林", "Guilin"], ["廈門", "厦门", "Xiamen"], ["澳門", "澳门", "Macau"],
+  ["曼谷", "曼谷", "Bangkok"], ["清邁", "清迈", "Chiang Mai"], ["布吉", "普吉", "Phuket"], ["新加坡", "新加坡", "Singapore"],
+  ["吉隆坡", "吉隆坡", "Kuala Lumpur"], ["峇里島", "巴厘岛", "Bali"], ["河內", "河内", "Hanoi"], ["峴港", "岘港", "Da Nang"],
+  ["胡志明市", "胡志明市", "Ho Chi Minh City"], ["宿霧", "宿务", "Cebu"], ["馬尼拉", "马尼拉", "Manila"],
+  ["倫敦", "伦敦", "London"], ["巴黎", "巴黎", "Paris"], ["羅馬", "罗马", "Rome"], ["巴塞隆拿", "巴塞罗那", "Barcelona"],
+  ["阿姆斯特丹", "阿姆斯特丹", "Amsterdam"], ["蘇黎世", "苏黎世", "Zurich"], ["布拉格", "布拉格", "Prague"],
+  ["悉尼", "悉尼", "Sydney"], ["墨爾本", "墨尔本", "Melbourne"], ["紐約", "纽约", "New York"], ["洛杉磯", "洛杉矶", "Los Angeles"],
+  ["杜拜", "迪拜", "Dubai"], ["溫哥華", "温哥华", "Vancouver"],
 ];
+const CITIES: City[] = RAW.map(([hant, hans, en]) => ({ hant, hans, en }));
+
+export function cityName(c: City, lang: Lang) {
+  return lang === "en" ? c.en : lang === "zh-Hans" ? c.hans : c.hant;
+}
 
 export function DestinationPicker({
   value,
   onChange,
 }: {
-  value: string;
-  onChange: (v: string) => void;
+  value: City | null;
+  onChange: (v: City) => void;
 }) {
+  const lang = useLang();
+  const t = useT();
   const [query, setQuery] = useState("");
-  const [region, setRegion] = useState("全部");
-  const q = query.trim();
+  const [open, setOpen] = useState(false);
+  const q = query.trim().toLowerCase();
 
-  const groups = useMemo(
+  const matches = useMemo(
     () =>
-      DESTINATIONS.filter((g) => region === "全部" || g.region === region)
-        .map((g) => ({
-          ...g,
-          cities: g.cities.filter((c) => !q || c.includes(q) || g.region.includes(q)),
-        }))
-        .filter((g) => g.cities.length),
-    [q, region],
+      q
+        ? CITIES.filter((c) => c.hant.includes(q) || c.hans.includes(q) || c.en.toLowerCase().includes(q)).slice(0, 8)
+        : [],
+    [q],
   );
-  const known = DESTINATIONS.some((g) => g.cities.includes(q));
+
+  const pick = (c: City) => {
+    onChange(c);
+    setQuery(cityName(c, lang));
+    setOpen(false);
+  };
 
   return (
-    <div className="space-y-3">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          id="destination"
-          className="pl-9"
-          placeholder="搜尋城市或國家，例如：京都"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {["全部", ...DESTINATIONS.map((g) => g.region)].map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => setRegion(r)}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition",
-              region === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-secondary",
-            )}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
-      <div className="max-h-56 space-y-3 overflow-y-auto rounded-lg border border-border p-3">
-        {q && !known && (
-          <button
-            type="button"
-            onClick={() => onChange(q)}
-            className="w-full rounded-md bg-secondary px-3 py-2 text-left text-sm"
-          >
-            以「{q}」作為目的地
-          </button>
-        )}
-        {groups.map((g) => (
-          <div key={g.region}>
-            <p className="mb-1.5 text-xs font-semibold text-muted-foreground">{g.region}</p>
-            <div className="flex flex-wrap gap-2">
-              {g.cities.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => onChange(c)}
-                  className={cn(
-                    "flex items-center gap-1 rounded-full border px-3 py-1 text-sm transition",
-                    value === c
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-border bg-card hover:border-primary",
-                  )}
-                >
-                  {value === c && <Check className="size-3" />}
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-        {!groups.length && !q && <p className="text-sm text-muted-foreground">沒有符合的城市</p>}
-      </div>
-      <p className="text-sm">
-        已選目的地：<span className="font-semibold">{value || "尚未選擇"}</span>
-      </p>
+    <div className="relative">
+      <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+      <Input
+        id="destination"
+        className="pl-9"
+        autoComplete="off"
+        placeholder={t.searchCity}
+        value={query}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+      />
+      {open && q && (
+        <ul
+          role="listbox"
+          className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lift"
+        >
+          {matches.map((c) => (
+            <li key={c.en}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={value?.en === c.en}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(c)}
+                className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm hover:bg-secondary"
+              >
+                <MapPin className="size-3.5 text-muted-foreground" />
+                <span className="font-medium">{cityName(c, lang)}</span>
+                {lang !== "en" && <span className="text-xs text-muted-foreground">{c.en}</span>}
+                {value?.en === c.en && <Check className="ml-auto size-4 text-primary" />}
+              </button>
+            </li>
+          ))}
+          {matches.length === 0 && (
+            <li>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick({ hant: query.trim(), hans: query.trim(), en: query.trim() })}
+                className="w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-secondary"
+              >
+                {t.useCustom(query.trim())}
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
     </div>
   );
 }
 
-const INTERESTS = ["美食", "購物", "古蹟文化", "自然風景", "親子", "攝影打卡", "博物館", "主題樂園", "溫泉", "夜生活", "戶外運動", "慢活休閒"];
-
-export function InterestTags({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+export function InterestTags({ value, onChange }: { value: number[]; onChange: (v: number[]) => void }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap gap-2">
-      {INTERESTS.map((t) => {
-        const on = value.includes(t);
+      {t.interestList.map((label, i) => {
+        const on = value.includes(i);
         return (
           <button
-            key={t}
+            key={i}
             type="button"
             aria-pressed={on}
-            onClick={() => onChange(on ? value.filter((x) => x !== t) : [...value, t])}
+            onClick={() => onChange(on ? value.filter((x) => x !== i) : [...value, i])}
             className={cn(
               "flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition",
               on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-primary",
             )}
           >
             {on && <Check className="size-3" />}
-            {t}
+            {label}
           </button>
         );
       })}
