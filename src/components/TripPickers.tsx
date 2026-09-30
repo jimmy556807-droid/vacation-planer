@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Check, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -42,13 +42,37 @@ export function DestinationPicker({
   const [open, setOpen] = useState(false);
   const q = query.trim().toLowerCase();
 
-  const matches = useMemo(
+  const local = useMemo(
     () =>
       q
         ? CITIES.filter((c) => c.hant.includes(q) || c.hans.includes(q) || c.en.toLowerCase().includes(q)).slice(0, 8)
         : [],
     [q],
   );
+  const [remote, setRemote] = useState<(City & { sub: string })[]>([]);
+  useEffect(() => {
+    if (!q) { setRemote([]); return; }
+    let stale = false;
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=${lang === "en" ? "en" : "zh"}`,
+        );
+        const json = (await res.json()) as { results?: { name: string; country?: string; admin1?: string; feature_code?: string }[] };
+        if (stale) return;
+        setRemote(
+          (json.results ?? [])
+            .filter((r) => r.feature_code?.startsWith("PPL"))
+            .map((r) => ({ hant: r.name, hans: r.name, en: r.name, sub: [r.admin1, r.country].filter(Boolean).join(", ") })),
+        );
+      } catch { if (!stale) setRemote([]); }
+    }, 300);
+    return () => { stale = true; clearTimeout(id); };
+  }, [q, lang]);
+  const matches: (City & { sub?: string })[] = [
+    ...local,
+    ...remote.filter((r) => !local.some((l) => [l.hant, l.hans, l.en].includes(r.en))),
+  ].slice(0, 12);
 
   const pick = (c: City) => {
     onChange(c);
@@ -77,19 +101,23 @@ export function DestinationPicker({
           role="listbox"
           className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lift"
         >
-          {matches.map((c) => (
-            <li key={c.en}>
+          {matches.map((c, i) => (
+            <li key={c.en + (c.sub ?? "") + i}>
               <button
                 type="button"
                 role="option"
                 aria-selected={value?.en === c.en}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pick(c)}
+                onClick={() => pick({ hant: c.hant, hans: c.hans, en: c.en })}
                 className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm hover:bg-secondary"
               >
                 <MapPin className="size-3.5 text-muted-foreground" />
                 <span className="font-medium">{cityName(c, lang)}</span>
-                {lang !== "en" && <span className="text-xs text-muted-foreground">{c.en}</span>}
+                {c.sub ? (
+                  <span className="truncate text-xs text-muted-foreground">{c.sub}</span>
+                ) : (
+                  lang !== "en" && <span className="text-xs text-muted-foreground">{c.en}</span>
+                )}
                 {value?.en === c.en && <Check className="ml-auto size-4 text-primary" />}
               </button>
             </li>
