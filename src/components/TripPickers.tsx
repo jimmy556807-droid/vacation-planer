@@ -66,7 +66,7 @@ export function DestinationPicker({
         placeholder={t.searchCity}
         value={query}
         onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onBlur={() => setOpen(false)}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);

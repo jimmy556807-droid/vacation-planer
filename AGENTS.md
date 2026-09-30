@@ -14,3 +14,4 @@
 - Weather comes from Open-Meteo (geocoding + forecast, archive fallback for dates beyond the 15-day forecast) — keyless, no backend needed.
 - Keep generated itinerary presentation as a chronological timeline with weather and budget visuals, using semantic city-editorial tokens — it makes long AI-generated plans scannable without changing their data contract.
 - Keep the itinerary overview organized into six top tabs and the bottom navigation into input, HKD exchange, and itinerary; the exchange view reads public daily HKD rates directly without storing a secret — these divisions keep planning and conversion independent.
+- UI text lives in `src/lib/i18n.tsx` (繁/简/EN dictionaries via LangContext, choice saved in the browser); DeepSeek output and weather notes follow the chosen language — keeps all three languages consistent in one place.

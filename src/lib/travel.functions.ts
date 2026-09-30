@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const weatherInput = z.object({ destination: z.string().min(1), startDate: z.string(), days: z.number().min(1).max(30) });
+const weatherInput = z.object({ lang: z.enum(["zh-Hant","zh-Hans","en"]).default("zh-Hant"), destination: z.string().min(1), startDate: z.string(), days: z.number().min(1).max(30) });
 
 export type DailyWeather = {
   date: string;
@@ -31,7 +31,7 @@ export const getWeather = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => weatherInput.parse(data))
   .handler(async ({ data }): Promise<WeatherResult> => {
     const geoRes = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(data.destination)}&count=1&language=zh`,
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(data.destination)}&count=1&language=${data.lang === "en" ? "en" : "zh"}`,
     );
     if (!geoRes.ok) throw new Error("無法取得目的地位置資訊");
     const geo = (await geoRes.json()) as {
@@ -111,9 +111,14 @@ export const getWeather = createServerFn({ method: "POST" })
 
     const temps = daily.flatMap((d) => [d.max, d.min]).filter((v): v is number => v !== null);
     const rainDays = daily.filter((d) => (d.precipitation ?? 0) >= 1).length;
-    const climateNote = temps.length
-      ? `氣溫約 ${Math.round(Math.min(...temps))}°C – ${Math.round(Math.max(...temps))}°C，預計有 ${rainDays} 天降雨。`
-      : "暫無氣候資料。";
+    const lo = Math.round(Math.min(...temps)), hi = Math.round(Math.max(...temps));
+    const climateNote = !temps.length
+      ? data.lang === "en" ? "No climate data." : data.lang === "zh-Hans" ? "暂无气候数据。" : "暫無氣候資料。"
+      : data.lang === "en"
+        ? `Around ${lo}°C – ${hi}°C, with rain expected on ${rainDays} day(s).`
+        : data.lang === "zh-Hans"
+          ? `气温约 ${lo}°C – ${hi}°C，预计有 ${rainDays} 天降雨。`
+          : `氣溫約 ${lo}°C – ${hi}°C，預計有 ${rainDays} 天降雨。`;
 
     return {
       place: hit.name,
@@ -127,6 +132,7 @@ export const getWeather = createServerFn({ method: "POST" })
   });
 
 const planInput = z.object({
+  lang: z.enum(["zh-Hant","zh-Hans","en"]).default("zh-Hant"),
   origin: z.string().min(1),
   destination: z.string().min(1),
   budget: z.number().min(0),
@@ -163,7 +169,7 @@ export const planTrip = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("尚未設定 DeepSeek 金鑰，請先儲存金鑰再產生行程。");
 
     const prompt = [
-      `請為以下旅程規劃詳細行程，全部使用繁體中文。`,
+      `請為以下旅程規劃詳細行程。所有 JSON 內容文字必須使用${data.lang === "en" ? "英文（English）" : data.lang === "zh-Hans" ? "简体中文" : "繁體中文"}撰寫。`,
       `出發地：${data.origin}`,
       `目的地：${data.destination}`,
       `出發日期：${data.startDate}`,

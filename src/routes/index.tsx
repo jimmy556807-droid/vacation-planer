@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   MapPin,
   Plane,
@@ -43,7 +43,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getWeather, planTrip, type TripPlan, type WeatherResult } from "@/lib/travel.functions";
-import { CURRENCIES, formatDate, weatherLook } from "@/lib/weather-display";
+import { CURRENCIES, currencyLabel, formatDate as fmtDate, weatherLook as wLook } from "@/lib/weather-display";
+import { DICTS, LANGS, LangContext, type Lang } from "@/lib/i18n";
+import { cityName, type City } from "@/components/TripPickers";
 import { ExchangeView } from "@/components/ExchangeView";
 
 export const Route = createFileRoute("/")({
@@ -74,13 +76,13 @@ function todayISO() {
 type Step = "input" | "exchange" | "plan";
 type PlanTab = "weather" | "overview" | "packing" | "prep" | "itinerary" | "budget";
 
-const PLAN_TABS: { id: PlanTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: "weather", label: "天氣預測", icon: CloudSun },
-  { id: "overview", label: "行程概覽", icon: Sparkles },
-  { id: "packing", label: "行李清單", icon: Luggage },
-  { id: "prep", label: "行前準備", icon: ClipboardCheck },
-  { id: "itinerary", label: "專屬行程詳情", icon: RouteIcon },
-  { id: "budget", label: "預算分配", icon: Wallet },
+const PLAN_TABS: { id: PlanTab; label: "tabWeather" | "tabOverview" | "tabPacking" | "tabPrep" | "tabItinerary" | "tabBudget"; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "weather", label: "tabWeather", icon: CloudSun },
+  { id: "overview", label: "tabOverview", icon: Sparkles },
+  { id: "packing", label: "tabPacking", icon: Luggage },
+  { id: "prep", label: "tabPrep", icon: ClipboardCheck },
+  { id: "itinerary", label: "tabItinerary", icon: RouteIcon },
+  { id: "budget", label: "tabBudget", icon: Wallet },
 ];
 
 function budgetBarColor(i: number) {
@@ -91,15 +93,31 @@ function Index() {
   const weatherFn = useServerFn(getWeather);
   const planFn = useServerFn(planTrip);
 
+  const [lang, setLang] = useState<Lang>("zh-Hant");
+  useEffect(() => {
+    const saved = localStorage.getItem("lang") as Lang | null;
+    if (saved && saved in DICTS) setLang(saved);
+  }, []);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+  const changeLang = (l: Lang) => {
+    setLang(l);
+    localStorage.setItem("lang", l);
+  };
+  const t = DICTS[lang];
+  const formatDate = (d: string) => fmtDate(d, lang);
+  const weatherLook = (c: number | null) => wLook(c, lang);
   const [step, setStep] = useState<Step>("input");
-  const origin = "香港";
-  const [destination, setDestination] = useState("");
+  const origin = t.hongKong;
+  const [city, setCity] = useState<City | null>(null);
+  const destination = city ? cityName(city, lang) : "";
   const [budget, setBudget] = useState("");
   const [currency, setCurrency] = useState("HKD");
   const [days, setDays] = useState("5");
   const [startDate, setStartDate] = useState(todayISO());
-  const [interestTags, setInterests] = useState<string[]>([]);
-  const interests = interestTags.join("、");
+  const [interestTags, setInterests] = useState<number[]>([]);
+  const interests = interestTags.map((i) => t.interestList[i]).join(lang === "en" ? ", " : "、");
   const [tab, setTab] = useState<PlanTab>("weather");
   const [weather, setWeather] = useState<WeatherResult | null>(null);
   const [plan, setPlan] = useState<TripPlan | null>(null);
@@ -109,11 +127,12 @@ function Index() {
     mutationFn: async () => {
       const numericDays = Math.max(1, Math.min(30, Number(days) || 1));
       const w = await weatherFn({
-        data: { destination, startDate, days: numericDays },
+        data: { lang, destination: city?.en ?? destination, startDate, days: numericDays },
       });
       setWeather(w);
       const p = await planFn({
         data: {
+          lang,
           origin,
           destination,
           budget: Number(budget) || 0,
@@ -134,32 +153,46 @@ function Index() {
       window.scrollTo({ top: 0 });
     },
     onSuccess: () => window.scrollTo({ top: 0 }),
-    onError: (e: Error) => setError(e.message || "發生未知錯誤，請稍後再試。"),
+    onError: (e: Error) => setError(e.message || t.unknownError),
   });
 
   const canSubmit = origin.trim() && destination.trim() && budget && days && startDate;
   const hasPlan = Boolean(plan) || mutation.isPending;
 
   return (
+    <LangContext.Provider value={lang}>
     <main className="min-h-screen pb-28">
+      <div className="fixed right-3 top-3 z-50 flex overflow-hidden rounded-full border border-border bg-card/95 shadow-soft backdrop-blur">
+        {LANGS.map((l) => (
+          <button
+            key={l.code}
+            type="button"
+            onClick={() => changeLang(l.code)}
+            aria-pressed={lang === l.code}
+            className={`px-3 py-1.5 text-xs font-semibold ${lang === l.code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
       {step === "input" ? (
         <>
           <section className="relative overflow-hidden">
             <img
               src={heroImage}
-              alt="沿海公路日出風景"
+              alt={t.heroAlt}
               width={1600}
               height={912}
               className="absolute inset-0 h-full w-full object-cover opacity-90"
             />
             <div className="absolute inset-0 bg-secondary/55" />
             <div className="relative mx-auto max-w-5xl px-6 py-20 text-center md:py-28">
-              <Badge className="mb-5 bg-card/90 text-card-foreground">AI 旅行規劃</Badge>
+              <Badge className="mb-5 bg-card/90 text-card-foreground">{t.heroBadge}</Badge>
               <h1 className="text-4xl leading-tight font-semibold text-primary-foreground md:text-6xl">
-                一次規劃好你的下一趟旅程
+                {t.heroTitle}
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-base text-primary-foreground/85 md:text-lg">
-                填入起點、終點、預算與天數，馬上取得當地天氣、行前準備建議，以及貼合預算的逐日行程。
+                {t.heroDesc}
               </p>
             </div>
           </section>
@@ -168,15 +201,15 @@ function Index() {
             <Card className="relative z-10 -mt-12 shadow-lift">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl">
-                  <Plane className="size-5 text-primary" /> 旅程資料
+                  <Plane className="size-5 text-primary" /> {t.tripInfo}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid gap-5 md:grid-cols-2">
-                  <Field icon={<MapPin className="size-4" />} label="出發地" htmlFor="origin">
+                  <Field icon={<MapPin className="size-4" />} label={t.origin} htmlFor="origin">
                     <Input id="origin" value={origin} readOnly disabled />
                   </Field>
-                  <Field icon={<Wallet className="size-4" />} label="總預算" htmlFor="budget">
+                  <Field icon={<Wallet className="size-4" />} label={t.budget} htmlFor="budget">
                     <div className="flex gap-2">
                       <Input
                         id="budget"
@@ -193,7 +226,7 @@ function Index() {
                         <SelectContent>
                           {CURRENCIES.map((c) => (
                             <SelectItem key={c.code} value={c.code}>
-                              {c.label}
+                              {currencyLabel(c.code, lang)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -201,11 +234,11 @@ function Index() {
                     </div>
                   </Field>
                   <div className="md:col-span-2">
-                    <Field icon={<MapPin className="size-4" />} label="目的地" htmlFor="destination">
-                      <DestinationPicker value={destination} onChange={setDestination} />
+                    <Field icon={<MapPin className="size-4" />} label={t.destination} htmlFor="destination">
+                      <DestinationPicker value={city} onChange={setCity} />
                     </Field>
                   </div>
-                  <Field icon={<Clock className="size-4" />} label="旅行天數" htmlFor="days">
+                  <Field icon={<Clock className="size-4" />} label={t.days} htmlFor="days">
                     <Input
                       id="days"
                       type="number"
@@ -217,7 +250,7 @@ function Index() {
                   </Field>
                   <Field
                     icon={<CalendarDays className="size-4" />}
-                    label="出發日期"
+                    label={t.startDate}
                     htmlFor="startDate"
                   >
                     <Input
@@ -228,7 +261,7 @@ function Index() {
                     />
                   </Field>
                   <div className="md:col-span-2">
-                    <Field icon={<Sparkles className="size-4" />} label="旅行偏好（選填，可多選）" htmlFor="likes">
+                    <Field icon={<Sparkles className="size-4" />} label={t.interests} htmlFor="likes">
                       <InterestTags value={interestTags} onChange={setInterests} />
                     </Field>
                   </div>
@@ -242,11 +275,11 @@ function Index() {
                 >
                   {mutation.isPending ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" /> 正在規劃行程…
+                      <Loader2 className="size-4 animate-spin" /> {t.planning}
                     </>
                   ) : (
                     <>
-                      <Sparkles className="size-4" /> 產生旅行計畫
+                      <Sparkles className="size-4" /> {t.generate}
                     </>
                   )}
                 </Button>
@@ -268,9 +301,9 @@ function Index() {
             <Card className="shadow-soft">
               <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
                 <Loader2 className="size-8 animate-spin text-accent" />
-                <p className="text-lg font-semibold">正在規劃你的旅程…</p>
+                <p className="text-lg font-semibold">{t.loadingTitle}</p>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  正在查詢當地天氣，並為你安排貼合預算的逐日行程，請稍候片刻。
+                  {t.loadingDesc}
                 </p>
               </CardContent>
             </Card>
@@ -283,7 +316,7 @@ function Index() {
                   {error}
                 </p>
                 <Button variant="outline" onClick={() => setStep("input")}>
-                  <ArrowLeft className="size-4" /> 回到輸入頁修改
+                  <ArrowLeft className="size-4" /> {t.backToInput}
                 </Button>
               </CardContent>
             </Card>
@@ -313,7 +346,7 @@ function Index() {
                       }`}
                     >
                       <t.icon className="size-4" />
-                      {t.label}
+                      {DICTS[lang][t.label]}
                       {tab === t.id && (
                         <span aria-hidden="true" className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent" />
                       )}
@@ -328,10 +361,10 @@ function Index() {
                     <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
                       <CloudSun className="size-5 text-accent" />
                       {weather.place}
-                      {weather.country ? `．${weather.country}` : ""} 旅行期間天氣
+                      {weather.country ? `．${weather.country}` : ""} {t.weatherDuring}
                       {!weather.isForecast && (
                         <Badge variant="secondary" className="font-normal">
-                          去年同期氣候參考
+                          {t.climateRef}
                         </Badge>
                       )}
                     </CardTitle>
@@ -354,7 +387,7 @@ function Index() {
                             </p>
                             {d.precipitation !== null && d.precipitation > 0 && (
                               <p className="text-xs text-muted-foreground">
-                                降雨 {d.precipitation.toFixed(1)} mm
+                                {t.rain} {d.precipitation.toFixed(1)} mm
                               </p>
                             )}
                           </div>
@@ -387,7 +420,7 @@ function Index() {
               {tab === "overview" && (
                 <Card className="shadow-soft">
                   <CardHeader>
-                    <CardTitle className="text-lg">行程概覽</CardTitle>
+                    <CardTitle className="text-lg">{t.tabOverview}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <p className="text-sm leading-7">{plan.overview}</p>
@@ -395,7 +428,7 @@ function Index() {
                       <>
                         <Separator />
                         <div>
-                          <h3 className="mb-2 text-base font-semibold">天氣相關建議</h3>
+                          <h3 className="mb-2 text-base font-semibold">{t.weatherAdvice}</h3>
                           <ul className="space-y-2 text-sm">
                             {plan.weatherAdvice.map((t, i) => (
                               <li key={i} className="flex gap-2">
@@ -414,7 +447,7 @@ function Index() {
                 <Card className="shadow-soft">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <Luggage className="size-5 text-primary" /> 行李清單
+                      <Luggage className="size-5 text-primary" /> {t.tabPacking}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -438,7 +471,7 @@ function Index() {
                 <Card className="shadow-soft">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <ClipboardCheck className="size-5 text-primary" /> 行前準備
+                      <ClipboardCheck className="size-5 text-primary" /> {t.tabPrep}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -459,7 +492,7 @@ function Index() {
                     <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                       <div>
                         <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-primary-foreground/65">
-                          <RouteIcon className="size-4" /> 你的專屬旅程
+                          <RouteIcon className="size-4" /> {t.yourTrip}
                         </p>
                         <div className="flex flex-wrap items-center gap-3">
                           <h2 className="text-2xl font-semibold md:text-3xl">{origin}</h2>
@@ -470,11 +503,11 @@ function Index() {
                       <div className="grid grid-cols-2 gap-5 sm:text-right">
                         <div>
                           <p className="text-2xl font-semibold">{plan.days.length}</p>
-                          <p className="text-xs text-primary-foreground/60">旅行天數</p>
+                          <p className="text-xs text-primary-foreground/60">{t.days}</p>
                         </div>
                         <div>
                           <p className="text-sm font-semibold">{formatDate(startDate)}</p>
-                          <p className="text-xs text-primary-foreground/60">啟程日期</p>
+                          <p className="text-xs text-primary-foreground/60">{t.startLabel}</p>
                         </div>
                       </div>
                     </div>
@@ -483,11 +516,11 @@ function Index() {
                   <div className="px-5 py-8 md:px-9 md:py-10">
                     <div className="mb-9 flex items-center justify-between gap-4">
                       <div>
-                        <p className="text-xs font-semibold text-accent-foreground">逐日路線</p>
-                        <h2 className="mt-1 text-2xl font-semibold">每日行程</h2>
+                        <p className="text-xs font-semibold text-accent-foreground">{t.dailyRoute}</p>
+                        <h2 className="mt-1 text-2xl font-semibold">{t.dailyPlan}</h2>
                       </div>
                       <Badge variant="secondary" className="gap-1.5 font-normal">
-                        <CalendarDays className="size-3.5" /> {plan.days.length} 天
+                        <CalendarDays className="size-3.5" /> {t.dayUnit(plan.days.length)}
                       </Badge>
                     </div>
 
@@ -520,10 +553,10 @@ function Index() {
                             </header>
 
                             <div className="relative ml-6 space-y-7 border-l-2 border-secondary pb-2 pl-8 md:pl-10">
-                              <TimelineItem icon={<Sunrise className="size-4" />} label="上午" value={d.morning} emphasized />
-                              <TimelineItem icon={<Sun className="size-4" />} label="下午" value={d.afternoon} />
-                              <TimelineItem icon={<Moon className="size-4" />} label="晚上" value={d.evening} />
-                              <TimelineItem icon={<Utensils className="size-4" />} label="餐飲推薦" value={d.food} />
+                              <TimelineItem icon={<Sunrise className="size-4" />} label={t.morning} value={d.morning} emphasized />
+                              <TimelineItem icon={<Sun className="size-4" />} label={t.afternoon} value={d.afternoon} />
+                              <TimelineItem icon={<Moon className="size-4" />} label={t.evening} value={d.evening} />
+                              <TimelineItem icon={<Utensils className="size-4" />} label={t.food} value={d.food} />
                             </div>
 
                             <div className="ml-6 mt-5 flex flex-wrap items-center gap-3 pl-8 md:pl-10">
@@ -532,7 +565,7 @@ function Index() {
                               </Badge>
                               {dayWeather && (dayWeather.precipitation ?? 0) > 0 && (
                                 <Badge variant="secondary" className="gap-1.5 font-normal">
-                                  <Umbrella className="size-3.5" /> 降雨 {dayWeather.precipitation?.toFixed(1)} mm
+                                  <Umbrella className="size-3.5" /> {t.rain} {dayWeather.precipitation?.toFixed(1)} mm
                                 </Badge>
                               )}
                               {dayWeather && (
@@ -553,7 +586,7 @@ function Index() {
                 <Card className="shadow-soft">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <Wallet className="size-5 text-primary" /> 預算分配（{currency}）
+                      <Wallet className="size-5 text-primary" /> {t.tabBudget}（{currency}）
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -574,7 +607,7 @@ function Index() {
                                   />
                                 ))}
                               </div>
-                              <p className="text-xs text-muted-foreground">各項花費佔比</p>
+                              <p className="text-xs text-muted-foreground">{t.shareOfCost}</p>
                             </div>
                           )}
                           {plan.budget.map((b, i) => {
@@ -619,6 +652,7 @@ function Index() {
 
       <BottomBar
         step={step}
+        t={t}
         hasPlan={hasPlan}
         pending={mutation.isPending}
         onInput={() => setStep("input")}
@@ -626,11 +660,13 @@ function Index() {
         onPlan={() => setStep("plan")}
       />
     </main>
+    </LangContext.Provider>
   );
 }
 
 function BottomBar({
   step,
+  t,
   hasPlan,
   pending,
   onInput,
@@ -638,6 +674,7 @@ function BottomBar({
   onPlan,
 }: {
   step: Step;
+  t: (typeof DICTS)[Lang];
   hasPlan: boolean;
   pending: boolean;
   onInput: () => void;
@@ -661,7 +698,7 @@ function BottomBar({
           }`}
         >
           <PenLine className="size-4" />
-          旅程輸入
+          {t.navInput}
           {step === "input" && (
             <span aria-hidden="true" className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-accent" />
           )}
@@ -675,7 +712,7 @@ function BottomBar({
           }`}
         >
           <ArrowLeftRight className="size-4" />
-          實時匯率
+          {t.navExchange}
           {step === "exchange" && (
             <span aria-hidden="true" className="absolute inset-x-5 bottom-0 h-0.5 rounded-full bg-accent" />
           )}
@@ -694,7 +731,7 @@ function BottomBar({
           ) : (
             <RouteIcon className="size-4" />
           )}
-          行程概覽
+          {t.navPlan}
           {step === "plan" && (
             <span aria-hidden="true" className="absolute inset-x-8 bottom-0 h-0.5 rounded-full bg-accent" />
           )}
